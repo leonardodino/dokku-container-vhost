@@ -12,35 +12,35 @@ dokku_log_info1 "container VHOST"
 [[ -f "$DOKKU_ROOT/ENV" ]] && source $DOKKU_ROOT/ENV
 [[ -f "$DOKKU_ROOT/$APP/ENV" ]] && source $DOKKU_ROOT/$APP/ENV
 
-APP="$1";
-CONTAINERID="$(cat $DOKKU_ROOT/$APP/CONTAINER)";
-OLDAPPVHOST="$DOKKU_ROOT/$APP/APPVHOST";
-VHOSTFILE="$DOKKU_ROOT/$APP/VHOST";
+APP="${1}";
+CONTAINERID="$(cat ${DOKKU_ROOT}/${APP}/CONTAINER)";
+OLDAPPVHOST="${DOKKU_ROOT}/${APP}/APPVHOST";
+VHOSTFILE="${DOKKU_ROOT}/${APP}/VHOST";
 ADDED=0; REMOVED=0;
 
 
-[[ -f $OLDAPPVHOST ]] && touch $OLDAPPVHOST;
+[[ ! -f $OLDAPPVHOST ]] && touch $OLDAPPVHOST;
 
-[[ -r $OLDAPPVHOST ]] && dokku_log_fail "cant read $OLDAPPVHOST";
-[[ -w $OLDAPPVHOST ]] && dokku_log_fail "cant write to $OLDAPPVHOST";
-[[ -r $VHOSTFILE ]] && dokku_log_fail "cant read $VHOSTFILE";
-[[ -w $VHOSTFILE ]] && dokku_log_fail "cant write to $VHOSTFILE";
+[[ ! -r $OLDAPPVHOST ]] && dokku_log_fail "cant read $OLDAPPVHOST";
+[[ ! -w $OLDAPPVHOST ]] && dokku_log_fail "cant write to $OLDAPPVHOST";
+[[ ! -r $VHOSTFILE ]] && dokku_log_fail "cant read $VHOSTFILE";
+[[ ! -w $VHOSTFILE ]] && dokku_log_fail "cant write to $VHOSTFILE";
 
 TMPDIR=$(mktemp -d /tmp/VHOST.XXXXX);
 docker cp $CONTAINERID:/app/VHOST $TMPDIR 2> /dev/null || true
 if [[ ! -s "${TMPDIR}/VHOST" ]] ; then
   dokku_log_verbose "VHOST file not found in container. skipping."
-  rm -rf $TMPDIR
+  rm -rf $TMPDIR || true;
   exit 0
 else
   dokku_log_verbose "VHOST file found in container"
-  FILENAME=${TMPDIR}/VHOST
+  FILENAME="${TMPDIR}/VHOST"
   cat "$FILENAME" | tr '[A-Z]' '[a-z]' | sort -u > ${TMPDIR}/SORTED;
   NEWAPPVHOST="${TMPDIR}/SORTED"
 
   cleanup() {
     dokku_log_verbose "removing VHOST file copied from container ..."
-    rm -rf $TMPDIR
+    rm -rf $TMPDIR || true;
   }
   trap cleanup EXIT
 fi

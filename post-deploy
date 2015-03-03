@@ -16,5 +16,5 @@ APPVHOST="$DOKKU_ROOT/$APP/APPVHOST";
 docker cp $CONTAINERID:/app/VHOST $TMPDIR 2> /dev/null || true;
 [[ -f "${TMPDIR}/VHOST" ]] && rm "$APPVHOST";
 [[ -f "${TMPDIR}/VHOST" ]] && cat "${TMPDIR}/VHOST" | tr '[A-Z]' '[a-z]' | sort -u > "$APPVHOST";
-rm -rf "$TMPDIR";
+[[ -d "${TMPDIR}" ]] && rm -rf "$TMPDIR" || true;
 exit 0;
