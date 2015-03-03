@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# Hook to add a list of hosts specified in VHOST file.
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+
+source "$(dirname $0)/../common/functions"
+[[ ! -f "$DOKKU_ROOT/VHOST" ]] && exit 0;
+
+[[ -f "$DOKKU_ROOT/ENV" ]] && source $DOKKU_ROOT/ENV
+[[ -f "$DOKKU_ROOT/$APP/ENV" ]] && source $DOKKU_ROOT/$APP/ENV
+
+APP="$1";
+TMPDIR=$(mktemp -d /tmp/APPVHOST.XXXXX);
+CONTAINERID="$(cat $DOKKU_ROOT/$APP/CONTAINER)";
+APPVHOST="$DOKKU_ROOT/$APP/APPVHOST";
+docker cp $CONTAINERID:/app/VHOST $TMPDIR 2> /dev/null || true;
+[[ -f "${TMPDIR}/VHOST" ]] && rm "$APPVHOST";
+[[ -f "${TMPDIR}/VHOST" ]] && cat "${TMPDIR}/VHOST" | tr '[A-Z]' '[a-z]' | sort -u > "$APPVHOST";
+rm -rf "$TMPDIR";
+exit 0;
