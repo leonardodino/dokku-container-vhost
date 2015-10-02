@@ -1,46 +1,42 @@
 #!/usr/bin/env bash
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 
-# save stdout outlet for latter
+# early exit
+  [[ ! -f "$DOKKU_ROOT/VHOST" ]] && exit 0
+
+# save stdout outlet
   exec 4<&1
 
 # disable stdout & stderr
   exec 1>/dev/null
   exec 2>/dev/null
 
-# arguments
-  APP="$1"; SUBDOMAIN="$2"; VHOST="$3"
 
-# early exit
-  [[ ! -f "$DOKKU_ROOT/$APP/CONTAINER" ]] && exit 0
-  [[ ! -f "$DOKKU_ROOT/VHOST" ]] && exit 0
+APP="$1"; SUBDOMAIN="$2"; VHOST="$3";
+TMPDIR=$(mktemp -d)
 
-# variables
-  CONTAINERID="$(cat "$DOKKU_ROOT/$APP/CONTAINER")"
-  TMPDIR=$(mktemp -d /tmp/VHOST.XXXXX);
+cleanup() {
+  rm -rf "$TMPDIR" 2> /dev/null || true;
+}
+trap cleanup EXIT
 
-# schedule cleanup
-  cleanup() {
-    rm -rf "$TMPDIR" 2> /dev/null || true;
-  }
-  trap cleanup EXIT
+if [[ "$APP" == *.* ]] && [[ "$SUBDOMAIN" == "$APP" ]]; then
+  autohostname="${APP/\//-}"
+else
+  autohostname="${APP/\//-}.$VHOST"
+fi
 
-# default dokku domain setup (based on app name)
-  if [[ "$APP" == *.* ]] && [[ "$SUBDOMAIN" == "$APP" ]]; then
-    autohostname="${APP/\//-}"
-  else
-    autohostname="${APP/\//-}.$VHOST"
-  fi
+cd "$TMPDIR" && git clone -q "$DOKKU_ROOT/$APP" repo > /dev/null 2>&1
 
-# get app root's VHOST file
-  docker cp "$CONTAINERID":/app/VHOST "$TMPDIR" 2> /dev/null || true;
-  appvhost="$TMPDIR/VHOST";
-  
-# exit if appvhost doesnt exist, or is empty
-  [[ ! -s "$appvhost" ]] && exit 0;
+appvhost=''
+
+if [[ -f "$TMPDIR/repo/VHOST" ]]; then
+  appvhost="$(cat "$TMPDIR/repo/VHOST" 2> /dev/null)"
+fi
+
 
 # return regular stdout
   exec 1<&4
 
 # appends dokku generated hostname to user hostnames,               removes comments,     rm empty lines, lowercase,           unique lines
-  printf "%s\n" "$autohostname" "$(cat "$appvhost" 2> /dev/null)" | sed 's:^\s*#.*$::g' | grep -v '^$' | tr '[:upper:]' '[:lower:]' | awk '!x[$0]++';
+  printf "%s\n" "$autohostname" "$appvhost" | sed 's:^\s*#.*$::g' | grep -v '^$' | tr '[:upper:]' '[:lower:]' | awk '!x[$0]++';
