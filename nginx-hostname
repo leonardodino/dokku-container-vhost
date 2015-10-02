@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-
-# sets app hostnames based on VHOST file,
-# located in app's repo root
-
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
-source "$(dirname $0)/../common/functions"
 
 # save stdout outlet for latter
   exec 4<&1
@@ -16,17 +11,17 @@ source "$(dirname $0)/../common/functions"
 # arguments
   APP="$1"; SUBDOMAIN="$2"; VHOST="$3"
 
-# error
+# early exit
   [[ ! -f "$DOKKU_ROOT/$APP/CONTAINER" ]] && exit 0
   [[ ! -f "$DOKKU_ROOT/VHOST" ]] && exit 0
 
 # variables
-  CONTAINERID="$(cat ${DOKKU_ROOT}/${APP}/CONTAINER)"
+  CONTAINERID="$(cat "$DOKKU_ROOT/$APP/CONTAINER")"
   TMPDIR=$(mktemp -d /tmp/VHOST.XXXXX);
 
 # schedule cleanup
   cleanup() {
-    rm -rf $TMPDIR 2> /dev/null || true;
+    rm -rf "$TMPDIR" 2> /dev/null || true;
   }
   trap cleanup EXIT
 
@@ -38,15 +33,14 @@ source "$(dirname $0)/../common/functions"
   fi
 
 # get app root's VHOST file
-  docker cp $CONTAINERID:/app/VHOST $TMPDIR 2> /dev/null || true;
-  appvhost="${TMPDIR}/VHOST";
+  docker cp "$CONTAINERID":/app/VHOST "$TMPDIR" 2> /dev/null || true;
+  appvhost="$TMPDIR/VHOST";
   
 # exit if appvhost doesnt exist, or is empty
   [[ ! -s "$appvhost" ]] && exit 0;
 
 # return regular stdout
   exec 1<&4
-  
-# TODO: refactor
+
 # appends dokku generated hostname to user hostnames,               removes comments,     rm empty lines, lowercase,           unique lines
-  printf "%s\n" "$autohostname" "$(cat $appvhost 2> /dev/null)" | sed 's:^\s*#.*$::g' | grep -v '^$' | tr '[A-Z]' '[a-z]' | awk '!x[$0]++';
+  printf "%s\n" "$autohostname" "$(cat "$appvhost" 2> /dev/null)" | sed 's:^\s*#.*$::g' | grep -v '^$' | tr '[:upper:]' '[:lower:]' | awk '!x[$0]++';
