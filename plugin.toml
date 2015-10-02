@@ -1,0 +1,4 @@
+[plugin]
+description = "configure dokku app domains based on a VHOST file placed on the root of the app"
+version = "0.0.1"
+[plugin.config]
